@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import json
+import re
 import numpy as np
 from dotenv import load_dotenv
 from google import genai
@@ -21,6 +22,8 @@ if 'video_script' not in st.session_state:
     st.session_state.video_script = ""
 if 'generated_video_path' not in st.session_state:
     st.session_state.generated_video_path = None
+if 'processed_images' not in st.session_state:
+    st.session_state.processed_images = []
 
 # Sidebar Inputs (No Form - Live Updates)
 st.sidebar.header("Property Details")
@@ -33,14 +36,18 @@ st.title("Real Estate Beta")
 uploaded_files = st.file_uploader("Upload Property Photos", accept_multiple_files=True, type=['jpg', 'png', 'jpeg'])
 
 if uploaded_files:
+    # Load and process images once, cache in session state
+    if not st.session_state.processed_images or len(st.session_state.processed_images) != len(uploaded_files):
+        st.session_state.processed_images = [
+            ImageOps.exif_transpose(Image.open(file)) for file in uploaded_files
+        ]
+    
     st.write(f"{len(uploaded_files)} photos loaded")
     with st.expander("📸 Source Photos"):
-        for i in range(0, len(uploaded_files), 4):
+        for i in range(0, len(st.session_state.processed_images), 4):
             cols = st.columns(4)
-            batch = uploaded_files[i:i+4]
-            for j, file in enumerate(batch):
-                img = Image.open(file)
-                img = ImageOps.exif_transpose(img)
+            batch = st.session_state.processed_images[i:i+4]
+            for j, img in enumerate(batch):
                 cols[j].image(img, use_container_width=True)
 
 # Custom CSS
@@ -78,6 +85,13 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Video Generation Helper
+def format_content_to_html(content, placeholder_text):
+    """Convert markdown paragraphs to HTML with proper spacing"""
+    if content and content != placeholder_text:
+        paragraphs = content.split('\n\n')
+        return ''.join([f'<p>{p.strip()}</p>' for p in paragraphs if p.strip()])
+    return f'<p>{content}</p>'
+
 def resize_with_padding(image, target_size=(1920, 1080)):
     # Calculate aspect ratio
     width, height = image.size
@@ -111,8 +125,7 @@ def resize_with_padding(image, target_size=(1920, 1080)):
 def generate_video(images):
     clips = []
     for i, img in enumerate(images):
-        # Fix rotation
-        img = ImageOps.exif_transpose(img)
+        # Images are already EXIF-transposed from cache
         
         # Resize with padding (Letterboxing)
         img = resize_with_padding(img, (1920, 1080))
@@ -144,9 +157,9 @@ if st.button("Generate Listing & Script", type="primary"):
         st.error("Please upload photos first.")
     else:
         # Read values directly from session state using widget keys
-        addr = st.session_state.get('address_input', '')
-        price = st.session_state.get('price_input', '')
-        beds = st.session_state.get('bed_bath_input', '')
+        addr = st.session_state.address_input
+        price = st.session_state.price_input
+        beds = st.session_state.bed_bath_input
         
         # Visual Debugger - Show what data is being sent
         st.info(f"🚀 Sending to Gemini: {addr} | {price} | {beds}")
@@ -192,7 +205,7 @@ if st.button("Generate Listing & Script", type="primary"):
                         """
                         
                         # Prepare content for Gemini
-                        images = [Image.open(file) for file in uploaded_files]
+                        images = st.session_state.processed_images
                         
                         contents = [prompt] + images
                         
@@ -218,7 +231,6 @@ if st.button("Generate Listing & Script", type="primary"):
                             
                             # Use regex to normalize all consecutive newlines (2 or more) to exactly 2 newlines
                             # This ensures consistent spacing regardless of how the AI formatted the text
-                            import re
                             listing_desc = re.sub(r'\n\n+', '\n\n', listing_desc)
                             video_script = re.sub(r'\n\n+', '\n\n', video_script)
 
@@ -243,8 +255,12 @@ if st.button("Generate Video"):
     else:
         with st.spinner("Generating video tour..."):
             try:
-                # Load images
-                images = [Image.open(file) for file in uploaded_files]
+                # Clean up old video if exists
+                if st.session_state.generated_video_path and os.path.exists(st.session_state.generated_video_path):
+                    os.remove(st.session_state.generated_video_path)
+                
+                # Load images from cache
+                images = st.session_state.processed_images
                 
                 if len(images) < 2:
                     st.warning("Please upload at least 2 photos for a video tour.")
@@ -262,13 +278,7 @@ col1, col2 = st.columns(2)
 with col1:
     # Listing Description Card
     listing_content = st.session_state.listing_text if st.session_state.listing_text else "Generate a listing to see it here."
-    
-    # Convert to HTML paragraphs for consistent spacing
-    if listing_content and listing_content != "Generate a listing to see it here.":
-        paragraphs = listing_content.split('\n\n')
-        html_content = ''.join([f'<p>{p.strip()}</p>' for p in paragraphs if p.strip()])
-    else:
-        html_content = f'<p>{listing_content}</p>'
+    html_content = format_content_to_html(listing_content, "Generate a listing to see it here.")
     
     st.markdown(f"""
     <div class="result-card">
@@ -284,13 +294,7 @@ with col2:
     
     # Video Script Card
     script_content = st.session_state.video_script if st.session_state.video_script else "Generate a script to see it here."
-    
-    # Convert to HTML paragraphs for consistent spacing
-    if script_content and script_content != "Generate a script to see it here.":
-        paragraphs = script_content.split('\n\n')
-        html_content = ''.join([f'<p>{p.strip()}</p>' for p in paragraphs if p.strip()])
-    else:
-        html_content = f'<p>{script_content}</p>'
+    html_content = format_content_to_html(script_content, "Generate a script to see it here.")
     
     st.markdown(f"""
     <div class="result-card">
