@@ -4,6 +4,8 @@ import json
 import re
 import hashlib
 import numpy as np
+import base64
+from io import BytesIO
 from datetime import datetime
 from dotenv import load_dotenv
 from google import genai
@@ -17,6 +19,114 @@ except ImportError as e:
 
 # Load environment variables
 load_dotenv()
+
+# Set page config
+st.set_page_config(
+    page_title="Listing Magic",
+    page_icon="🏠",
+    layout="centered",
+    initial_sidebar_state="expanded"
+)
+
+# Premium CSS Styling - Loaded immediately to prevent FOUC
+st.markdown("""
+<style>
+    /* Premium color scheme */
+    :root {
+        --primary-navy: #1e3a5f;
+        --accent-gold: #d4af37;
+        --light-gray: #f8f9fa;
+    }
+    
+    /* Main container */
+    .main .block-container {
+        padding-top: 2rem;
+        padding-bottom: 2rem;
+        max-width: 1200px !important;
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+    
+    /* Override Streamlit's default wide layout */
+    .main {
+        max-width: 1200px !important;
+        margin: 0 auto !important;
+    }
+    
+
+    
+    /* Result cards */
+    .result-card {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin-bottom: 1.5rem;
+        border-left: 4px solid var(--accent-gold);
+    }
+    
+    .result-card p {
+        margin-bottom: 1.5em;
+        line-height: 1.8;
+        color: #2c3e50;
+    }
+    
+    /* Button styling */
+    .stButton > button {
+        border-radius: 8px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    /* Metrics */
+    [data-testid="stMetricValue"] {
+        font-size: 2rem;
+    }
+    
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 2rem;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        padding: 1rem 2rem;
+        font-weight: 500;
+    }
+    
+    /* Headers */
+    h3 {
+        color: var(--primary-navy);
+        font-weight: 600;
+        margin-top: 2rem;
+    }
+    
+    /* Dividers */
+    hr {
+        margin: 2rem 0;
+        border-color: #e0e0e0;
+    }
+    
+    /* Hide the file list below uploader */
+    [data-testid="stFileUploader"] section[data-testid="stFileUploaderDropzone"] + div {
+        display: none !important;
+    }
+    
+    /* Center the browse button */
+    [data-testid="stFileUploaderDropzone"] {
+        text-align: center;
+    }
+
+    /* Hide "Press Enter to apply" instruction text */
+    [data-testid="InputInstructions"] {
+        display: none !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # Helper function for generating consistent listing IDs
 def generate_listing_ids(address):
@@ -203,99 +313,77 @@ st.sidebar.text_area(
 st.sidebar.markdown("---")
 st.sidebar.caption("*Required: Address, City, State*")
 
-st.title("Real Estate Beta")
+st.title("Listing Magic")
 
-uploaded_files = st.file_uploader("Upload Property Photos", accept_multiple_files=True, type=['jpg', 'png', 'jpeg'])
+# Helper function to convert PIL image to base64
+def image_to_base64(img, max_width=150):
+    """Convert PIL image to base64 string for HTML embedding"""
+    # Resize for thumbnail
+    img_copy = img.copy()
+    aspect_ratio = img_copy.height / img_copy.width
+    new_height = int(max_width * aspect_ratio)
+    img_copy = img_copy.resize((max_width, new_height), Image.Resampling.LANCZOS)
 
-if uploaded_files:
-    # Load and process images once, cache in session state
-    if not st.session_state.processed_images or len(st.session_state.processed_images) != len(uploaded_files):
-        st.session_state.processed_images = [
-            ImageOps.exif_transpose(Image.open(file)) for file in uploaded_files
-        ]
-    
-    st.write(f"{len(uploaded_files)} photos loaded")
-    with st.expander("📸 Source Photos"):
-        for i in range(0, len(st.session_state.processed_images), 4):
-            cols = st.columns(4)
-            batch = st.session_state.processed_images[i:i+4]
-            for j, img in enumerate(batch):
-                cols[j].image(img, width='stretch')
+    # Convert to base64
+    buffered = BytesIO()
+    img_copy.save(buffered, format="JPEG", quality=85)
+    img_str = base64.b64encode(buffered.getvalue()).decode()
+    return f"data:image/jpeg;base64,{img_str}"
 
-# Premium CSS Styling
-st.markdown("""
-<style>
-    /* Premium color scheme */
-    :root {
-        --primary-navy: #1e3a5f;
-        --accent-gold: #d4af37;
-        --light-gray: #f8f9fa;
-    }
-    
-    /* Main container */
-    .main .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-        max-width: 1200px;
-    }
-    
-    /* Result cards */
-    .result-card {
-        background: white;
-        padding: 2rem;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        margin-bottom: 1.5rem;
-        border-left: 4px solid var(--accent-gold);
-    }
-    
-    .result-card p {
-        margin-bottom: 1.5em;
-        line-height: 1.8;
-        color: #2c3e50;
-    }
-    
-    /* Button styling */
-    .stButton > button {
-        border-radius: 8px;
-        font-weight: 500;
-        transition: all 0.3s ease;
-    }
-    
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    
-    /* Metrics */
-    [data-testid="stMetricValue"] {
-        font-size: 2rem;
-    }
-    
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 2rem;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        padding: 1rem 2rem;
-        font-weight: 500;
-    }
-    
-    /* Headers */
-    h3 {
-        color: var(--primary-navy);
-        font-weight: 600;
-        margin-top: 2rem;
-    }
-    
-    /* Dividers */
-    hr {
-        margin: 2rem 0;
-        border-color: #e0e0e0;
-    }
-</style>
-""", unsafe_allow_html=True)
+# Create a container for the upload area
+upload_container = st.container()
+
+with upload_container:
+    uploaded_files = st.file_uploader(
+        "Upload Property Photos",
+        accept_multiple_files=True,
+        type=['jpg', 'png', 'jpeg'],
+        label_visibility="visible"
+    )
+
+    if uploaded_files:
+        # Load and cache images
+        if not st.session_state.processed_images or len(st.session_state.processed_images) != len(uploaded_files):
+            st.session_state.processed_images = [
+                ImageOps.exif_transpose(Image.open(file)) for file in uploaded_files
+            ]
+
+        # Convert images to base64 for embedding
+        img_html_list = []
+        for img in st.session_state.processed_images:
+            img_base64 = image_to_base64(img)
+            img_html_list.append(f'<img src="{img_base64}" style="width: 100%; border-radius: 8px; margin: 5px;">')
+
+        # Create grid of images (8 per row)
+        num_cols = 8
+        rows_html = []
+        for i in range(0, len(img_html_list), num_cols):
+            row_imgs = img_html_list[i:i+num_cols]
+            row_html = '<div style="display: flex; gap: 10px; margin-bottom: 10px;">'
+            for img_html in row_imgs:
+                row_html += f'<div style="flex: 1; min-width: 0;">{img_html}</div>'
+            row_html += '</div>'
+            rows_html.append(row_html)
+
+        # Display images inside the upload area with custom styling
+        st.markdown(f"""
+        <div style="
+            margin-top: -10px;
+            padding: 20px;
+            background-color: #262730;
+            border-radius: 0 0 8px 8px;
+            border: 1px solid #464754;
+            border-top: none;
+        ">
+            <p style="color: #a0a0a0; font-size: 14px; margin-bottom: 15px;">✓ {len(uploaded_files)} photos uploaded</p>
+            {''.join(rows_html)}
+        </div>
+        """, unsafe_allow_html=True)
+
+st.markdown("---")
+
+
+
 
 # Video Generation Helper
 def format_content_to_html(content, placeholder_text):
