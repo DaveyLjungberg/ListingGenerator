@@ -233,6 +233,8 @@ if 'generated_video_path' not in st.session_state:
     st.session_state.generated_video_path = None
 if 'processed_images' not in st.session_state:
     st.session_state.processed_images = []
+if 'cached_image_html' not in st.session_state:
+    st.session_state.cached_image_html = ""
 if 'features_sheet' not in st.session_state:
     st.session_state.features_sheet = ""
 if 'last_generated_hash' not in st.session_state:
@@ -343,29 +345,34 @@ with upload_container:
 
     if uploaded_files:
         # Load and cache images
-        if not st.session_state.processed_images or len(st.session_state.processed_images) != len(uploaded_files):
+        images_changed = not st.session_state.processed_images or len(st.session_state.processed_images) != len(uploaded_files)
+
+        if images_changed:
             st.session_state.processed_images = [
                 ImageOps.exif_transpose(Image.open(file)) for file in uploaded_files
             ]
 
-        # Convert images to base64 for embedding
-        img_html_list = []
-        for img in st.session_state.processed_images:
-            img_base64 = image_to_base64(img)
-            img_html_list.append(f'<img src="{img_base64}" style="width: 100%; border-radius: 8px; margin: 5px;">')
+            # Convert images to base64 for embedding (only when images change)
+            img_html_list = []
+            for img in st.session_state.processed_images:
+                img_base64 = image_to_base64(img)
+                img_html_list.append(f'<img src="{img_base64}" style="width: 100%; border-radius: 8px; margin: 5px;">')
 
-        # Create grid of images (8 per row)
-        num_cols = 8
-        rows_html = []
-        for i in range(0, len(img_html_list), num_cols):
-            row_imgs = img_html_list[i:i+num_cols]
-            row_html = '<div style="display: flex; gap: 10px; margin-bottom: 10px;">'
-            for img_html in row_imgs:
-                row_html += f'<div style="flex: 1; min-width: 0;">{img_html}</div>'
-            row_html += '</div>'
-            rows_html.append(row_html)
+            # Create grid of images (8 per row)
+            num_cols = 8
+            rows_html = []
+            for i in range(0, len(img_html_list), num_cols):
+                row_imgs = img_html_list[i:i+num_cols]
+                row_html = '<div style="display: flex; gap: 10px; margin-bottom: 10px;">'
+                for img_html in row_imgs:
+                    row_html += f'<div style="flex: 1; min-width: 0;">{img_html}</div>'
+                row_html += '</div>'
+                rows_html.append(row_html)
 
-        # Display images inside the upload area with custom styling
+            # Cache the generated HTML
+            st.session_state.cached_image_html = ''.join(rows_html)
+
+        # Display images inside the upload area with custom styling (use cached HTML)
         st.markdown(f"""
         <div style="
             margin-top: -10px;
@@ -376,7 +383,7 @@ with upload_container:
             border-top: none;
         ">
             <p style="color: #a0a0a0; font-size: 14px; margin-bottom: 15px;">✓ {len(uploaded_files)} photos uploaded</p>
-            {''.join(rows_html)}
+            {st.session_state.cached_image_html}
         </div>
         """, unsafe_allow_html=True)
 
@@ -887,9 +894,10 @@ if generate_listing:
                             
                             # Update hash after successful generation
                             st.session_state.last_generated_hash = get_inputs_hash(uploaded_files)
-                            
+
                             st.success("✅ Listing and script generated successfully!")
-                                
+                            st.rerun()
+
                         except json.JSONDecodeError:
                             st.error("Failed to parse the response. Raw output:")
                             st.write(response.text)
@@ -925,7 +933,8 @@ if generate_video:
                         
                         st.session_state.generated_video_path = video_path
                         st.success("✅ Video with voiceover generated successfully!")
-                        
+                        st.rerun()
+
                 except Exception as e:
                     st.error(f"An error occurred during video generation: {e}")
 
@@ -1004,9 +1013,10 @@ if generate_features:
                     
                     # Store in session state
                     st.session_state.features_sheet = features_text
-                    
+
                     st.success("✅ Features sheet generated successfully!")
-                    
+                    st.rerun()
+
             except Exception as e:
                 st.error(f"An error occurred: {e}")
 
