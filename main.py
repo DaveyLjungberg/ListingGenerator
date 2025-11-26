@@ -751,35 +751,45 @@ def generate_video_with_voiceover(images, script_text, file_manager):
 
     return output_path
 
-def generate_reso_data(images, addr, city, state, zip_code, price, beds_baths, sqft, additional_details, listing_description):
+def generate_reso_data(images, addr, city, state, zip_code, price, beds_baths, sqft, additional_details, listing_description, property_type):
     """Generate RESO-compliant JSON data using Gemini photo analysis"""
-    
+
     api_key = os.getenv("GOOGLE_API_KEY")
     if not api_key:
         raise ValueError("GOOGLE_API_KEY not found in environment")
-    
+
     client = genai.Client(api_key=api_key)
-    
+
     # Generate consistent, traceable IDs
     listing_key, listing_id = generate_listing_ids(addr)
-    
+
     # Parse street address components
     address_parts = parse_street_address(addr)
-    
+
     # Construct full address
     full_address = f"{addr}, {city}, {state}"
     if zip_code and zip_code.strip():
         full_address += f" {zip_code}"
-    
+
     # Construct comprehensive RESO generation prompt
     prompt = f"""
     You are a real estate data analyst creating MLS-compliant RESO JSON data.
-    
+
     Property: {full_address}
     Price: {price}
     Bedrooms/Bathrooms: {beds_baths}
     Square Feet: {sqft if sqft else 'Not provided'}
     {f"Additional Details: {additional_details}" if additional_details else ""}
+
+    IMPORTANT - Property Type: The user selected property type: {property_type}
+    Use this for the PropertySubType field in the RESO JSON. Map it appropriately:
+    - "Single Family Home" → "Single Family Residence"
+    - "Condo/Townhouse" → "Condominium" or "Townhouse" (analyze photos to determine)
+    - "Multi-Family (2-4 units)" → "Multi-Family"
+    - "Apartment" → "Apartment"
+    - "Land/Lot" → "Lots and Land"
+    - "Commercial" → "Commercial"
+    - "Other" → Analyze photos and infer appropriate subtype
     
     Analyze the provided photos to identify:
     1. Architectural style (Colonial, Ranch, Contemporary, Victorian, etc.)
@@ -800,7 +810,7 @@ def generate_reso_data(images, addr, city, state, zip_code, price, beds_baths, s
       "StandardStatus": "Active",
       "ListPrice": Extract numeric value from {price},
       "PropertyType": "Residential",
-      "PropertySubType": Infer from photos ("Single Family Residence", "Condominium", "Townhouse", etc.),
+      "PropertySubType": Use the mapping from user-selected property type "{property_type}" as instructed above,
       "UnparsedAddress": "{full_address}",
       "StreetNumber": "{address_parts['street_number']}",
       "StreetName": "{address_parts['street_name']}",
@@ -1211,11 +1221,12 @@ if download_reso:
         city = st.session_state.get('city_input', '')
         state = st.session_state.get('state_input', '')
         zip_code = st.session_state.get('zip_input', '')
+        property_type = st.session_state.get('property_type_input', 'Single Family Home')
         price = st.session_state.get('price_input', '')
         beds_baths = st.session_state.get('bed_bath_input', '')
         sqft = st.session_state.get('sqft_input', '')
         additional_details = st.session_state.get('additional_details_input', '').strip()
-        
+
         with st.spinner("Generating RESO-compliant JSON data..."):
             try:
                 # Generate RESO data
@@ -1229,7 +1240,8 @@ if download_reso:
                     beds_baths,
                     sqft,
                     additional_details,
-                    st.session_state.listing_text
+                    st.session_state.listing_text,
+                    property_type
                 )
                 
                 # Create filename
