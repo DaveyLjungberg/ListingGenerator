@@ -357,9 +357,23 @@ st.sidebar.markdown("---")
 
 # Property Info Section
 st.sidebar.markdown("### 💰 Property Information")
+st.sidebar.selectbox(
+    "Property Type",
+    options=[
+        "Single Family Home",
+        "Condo/Townhouse",
+        "Multi-Family (2-4 units)",
+        "Apartment",
+        "Land/Lot",
+        "Commercial",
+        "Other"
+    ],
+    key='property_type_input',
+    index=0
+)
 st.sidebar.text_input(
-    "Asking Price", 
-    key='price_input', 
+    "Asking Price",
+    key='price_input',
     placeholder="$500,000",
     on_change=lambda: None
 )
@@ -933,6 +947,7 @@ if generate_listing:
         city = st.session_state.get('city_input', '')
         state = st.session_state.get('state_input', '')
         zip_code = st.session_state.get('zip_input', '')
+        property_type = st.session_state.get('property_type_input', 'Single Family Home')
         price = st.session_state.get('price_input', '')
         beds = st.session_state.get('bed_bath_input', '')
         sqft = st.session_state.get('sqft_input', '')
@@ -976,8 +991,8 @@ if generate_listing:
                         
                         # Construct prompt with actual values
                         prompt = f"""
-                        You are a top-tier luxury real estate copywriter. Here are photos of {addr_display}, listed for {price_display}. The home has {beds_display}.
-                        
+                        You are a top-tier luxury real estate copywriter. Here are photos of {addr_display}, a {property_type} listed for {price_display}. The property has {beds_display}.
+
                         {f"IMPORTANT DETAILS TO HIGHLIGHT: {additional_details}" if additional_details else ""}
 
                         CRITICAL LEGAL CONSTRAINT: You must strictly adhere to the U.S. Fair Housing Act.
@@ -990,10 +1005,10 @@ if generate_listing:
                         Provide the output in JSON format with two keys: "listing_description" and "video_script".
                         The values should be plain text (no HTML tags).
                         Format the output in clean Markdown. Ensure there is a double newline between every paragraph for proper spacing.
-                        
-                        Listing Description: Write a 250-word engaging, professional listing description. Use the provided address ({addr_display}) and price ({price_display}) in the first paragraph. Do not use placeholders like [Address] or [Price]. Highlight features seen in the photos (e.g., natural light, flooring, appliances).
-                        
-                        Social Media Video Script: Create a structured script for a 60-second video tour (Instagram Reel/TikTok style). Match specific voiceover lines to specific photo filenames provided.
+
+                        Listing Description: Write a 250-word engaging, professional listing description tailored for a {property_type}. Use the provided address ({addr_display}) and price ({price_display}) in the first paragraph. Do not use placeholders like [Address] or [Price]. Highlight features appropriate for this property type as seen in the photos (e.g., natural light, flooring, appliances, common areas, etc.).
+
+                        Social Media Video Script: Create a structured script for a 60-second video tour (Instagram Reel/TikTok style) that emphasizes the unique selling points of a {property_type}. Match specific voiceover lines to specific photo filenames provided.
                         """
                         
                         # Prepare content for Gemini
@@ -1086,15 +1101,16 @@ if generate_features:
     else:
         # Read values from session state
         addr = st.session_state.address_input
+        property_type = st.session_state.get('property_type_input', 'Single Family Home')
         price = st.session_state.price_input
         beds = st.session_state.bed_bath_input
         additional_details = st.session_state.get('additional_details_input', '').strip()
-        
+
         # Handle empty data gracefully
         addr_display = addr if addr else 'Unknown Address'
         price_display = price if price else 'Price Upon Request'
         beds_display = beds if beds else 'Contact for Details'
-        
+
         with st.spinner("Generating detailed features sheet..."):
             try:
                 api_key = os.getenv("GOOGLE_API_KEY")
@@ -1102,23 +1118,24 @@ if generate_features:
                     st.error("Please set your GOOGLE_API_KEY in the .env file.")
                 else:
                     client = genai.Client(api_key=api_key)
-                    
+
                     # Construct features sheet prompt
                     prompt = f"""
                     You are a luxury real estate copywriter creating a detailed Property Features Sheet for potential buyers.
-                    
+
+                    Property Type: {property_type}
                     Property: {addr_display}, listed for {price_display}, {beds_display}
                     
                     {f"IMPORTANT DETAILS TO HIGHLIGHT: {additional_details}" if additional_details else ""}
                     
-                    Create a comprehensive Property Features Sheet (300-500 words) that includes:
-                    
+                    Create a comprehensive Property Features Sheet (300-500 words) tailored for a {property_type} that includes:
+
                     1. An engaging, descriptive title for the property (not just the address)
-                    2. Detailed descriptions of each room and living space
+                    2. Detailed descriptions of each room and living space appropriate for this property type
                     3. Unique features, architectural details, and character elements
                     4. Recent updates and improvements
-                    5. Outdoor spaces, parking, and storage areas
-                    6. Use descriptive, marketing-focused language that appeals to buyers
+                    5. Outdoor spaces, parking, and storage areas (if applicable to this property type)
+                    6. Use descriptive, marketing-focused language that appeals to buyers interested in a {property_type}
                     
                     CRITICAL LEGAL CONSTRAINT: You must strictly adhere to the U.S. Fair Housing Act.
                     NEVER mention race, religion, gender, disability, or familial status.
