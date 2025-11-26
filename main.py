@@ -10,6 +10,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 from google import genai
 from PIL import Image, ImageOps
+from utils.file_manager import FileManager
 
 try:
     from moviepy import ImageClip, CompositeVideoClip, AudioFileClip, vfx
@@ -31,100 +32,174 @@ st.set_page_config(
 # Premium CSS Styling - Loaded immediately to prevent FOUC
 st.markdown("""
 <style>
-    /* Premium color scheme */
-    :root {
-        --primary-navy: #1e3a5f;
-        --accent-gold: #d4af37;
-        --light-gray: #f8f9fa;
-    }
-    
-    /* Main container */
-    .main .block-container {
-        padding-top: 2rem;
-        padding-bottom: 2rem;
-        max-width: 1200px !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-    }
-    
-    /* Override Streamlit's default wide layout */
-    .main {
-        max-width: 1200px !important;
-        margin: 0 auto !important;
-    }
-    
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600;700&display=swap');
 
-    
-    /* Result cards */
-    .result-card {
-        background: white;
-        padding: 2rem;
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        margin-bottom: 1.5rem;
-        border-left: 4px solid var(--accent-gold);
-    }
-    
-    .result-card p {
-        margin-bottom: 1.5em;
-        line-height: 1.8;
-        color: #2c3e50;
-    }
-    
-    /* Button styling */
-    .stButton > button {
-        border-radius: 8px;
-        font-weight: 500;
-        transition: all 0.3s ease;
-    }
-    
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    }
-    
-    /* Metrics */
-    [data-testid="stMetricValue"] {
-        font-size: 2rem;
-    }
-    
-    /* Tabs */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 2rem;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        padding: 1rem 2rem;
-        font-weight: 500;
-    }
-    
-    /* Headers */
-    h3 {
-        color: var(--primary-navy);
-        font-weight: 600;
-        margin-top: 2rem;
-    }
-    
-    /* Dividers */
-    hr {
-        margin: 2rem 0;
-        border-color: #e0e0e0;
-    }
-    
-    /* Hide the file list below uploader */
-    [data-testid="stFileUploader"] section[data-testid="stFileUploaderDropzone"] + div {
-        display: none !important;
-    }
-    
-    /* Center the browse button */
-    [data-testid="stFileUploaderDropzone"] {
-        text-align: center;
-    }
+/* Global Color Variables */
+:root {
+    --primary-navy: #1E293B;
+    --accent-gold: #D4AF37;
+    --surface-white: #FFFFFF;
+    --background-gray: #F8FAFC;
+    --text-primary: #334155;
+    --text-secondary: #64748B;
+}
 
-    /* Hide "Press Enter to apply" instruction text */
-    [data-testid="InputInstructions"] {
-        display: none !important;
-    }
+/* Main Background */
+.main {
+    background-color: var(--background-gray);
+}
+
+.main .block-container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+/* Premium Card Design with Hover Effect */
+.result-card {
+    background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%);
+    padding: 2.5rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    border-left: 4px solid var(--accent-gold);
+    margin-bottom: 1.5rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.result-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.card-header {
+    font-family: 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 1.2rem;
+    margin-bottom: 1.5rem;
+    color: var(--primary-navy);
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    border-bottom: 2px solid #E2E8F0;
+    padding-bottom: 0.75rem;
+}
+
+.result-card p {
+    margin-bottom: 1.5em;
+    line-height: 1.8;
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+}
+
+/* Premium Button Styling with Gold Glow */
+.stButton > button {
+    background: linear-gradient(135deg, var(--accent-gold) 0%, #C4A137 100%) !important;
+    color: var(--primary-navy) !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    font-family: 'Inter', sans-serif !important;
+    padding: 0.75rem 2rem !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.5px !important;
+}
+
+.stButton > button:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 10px 20px rgba(212, 175, 55, 0.4) !important;
+}
+
+.stButton > button:active {
+    transform: translateY(0) !important;
+}
+
+/* Typography Hierarchy */
+h1, h2, h3 {
+    font-family: 'Playfair Display', serif !important;
+    color: var(--primary-navy) !important;
+    font-weight: 700 !important;
+}
+
+h3 {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+p, div, span, label {
+    font-family: 'Inter', sans-serif !important;
+    color: var(--text-primary);
+}
+
+/* Sidebar Styling */
+section[data-testid="stSidebar"] {
+    background-color: var(--primary-navy) !important;
+}
+
+section[data-testid="stSidebar"] h3,
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] label {
+    color: #FFFFFF !important;
+}
+
+/* Metrics/Status Dashboard */
+[data-testid="stMetricValue"] {
+    font-size: 2rem;
+    font-weight: 700;
+    font-family: 'Inter', sans-serif !important;
+}
+
+[data-testid="stMetricDelta"] {
+    font-size: 0.875rem;
+    font-family: 'Inter', sans-serif !important;
+}
+
+/* Photo Thumbnails with Hover */
+img {
+    border-radius: 8px;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+img:hover {
+    transform: scale(1.03);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+    z-index: 10;
+}
+
+/* File Uploader Styling */
+[data-testid="stFileUploader"] section[data-testid="stFileUploaderDropzone"] + div {
+    display: none !important;
+}
+
+[data-testid="stFileUploaderDropzone"] {
+    text-align: center;
+    border: 2px dashed var(--accent-gold) !important;
+    background-color: rgba(212, 175, 55, 0.05) !important;
+    border-radius: 12px !important;
+}
+
+/* Hide unnecessary elements */
+[data-testid="InputInstructions"] {
+    display: none !important;
+}
+
+/* Dividers */
+hr {
+    margin: 2rem 0;
+    border: none;
+    border-top: 2px solid #E2E8F0;
+}
+
+/* Input Fields */
+input, textarea {
+    font-family: 'Inter', sans-serif !important;
+    border-radius: 8px !important;
+}
+
+/* Checkbox Styling */
+[data-testid="stCheckbox"] {
+    font-family: 'Inter', sans-serif !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -239,13 +314,15 @@ if 'features_sheet' not in st.session_state:
     st.session_state.features_sheet = ""
 if 'last_generated_hash' not in st.session_state:
     st.session_state.last_generated_hash = ""
+if 'file_manager' not in st.session_state:
+    st.session_state.file_manager = FileManager()
 
 # Premium Sidebar Design
 st.sidebar.markdown("### 🏡 Property Details")
 st.sidebar.markdown("---")
 
 # Location Section
-st.sidebar.markdown("**📍 Location**")
+st.sidebar.markdown("### 📍 Location")
 st.sidebar.text_input(
     "Street Address", 
     key='address_input', 
@@ -279,7 +356,7 @@ st.sidebar.text_input(
 st.sidebar.markdown("---")
 
 # Property Info Section
-st.sidebar.markdown("**💰 Property Information**")
+st.sidebar.markdown("### 💰 Property Information")
 st.sidebar.text_input(
     "Asking Price", 
     key='price_input', 
@@ -302,7 +379,8 @@ st.sidebar.text_input(
 st.sidebar.markdown("---")
 
 # Additional Details Section
-st.sidebar.markdown("**📝 Additional Details** *(optional)*")
+st.sidebar.markdown("### 📝 Additional Details")
+st.sidebar.caption("*Optional - Add details not visible in photos*")
 st.sidebar.text_area(
     "",
     key='additional_details_input',
@@ -315,7 +393,31 @@ st.sidebar.text_area(
 st.sidebar.markdown("---")
 st.sidebar.caption("*Required: Address, City, State*")
 
-st.title("Listing Magic")
+st.markdown("""
+<div style="
+    text-align: center;
+    padding: 3rem 0 2rem 0;
+    background: linear-gradient(135deg, #1E293B 0%, #334155 100%);
+    margin: -2rem -3rem 2rem -3rem;
+    border-radius: 0 0 24px 24px;
+">
+    <h1 style="
+        font-family: 'Playfair Display', serif;
+        font-size: 3rem;
+        font-weight: 700;
+        color: #FFFFFF;
+        margin: 0 0 0.5rem 0;
+        letter-spacing: -1px;
+    ">✨ Listing Magic</h1>
+    <p style="
+        font-family: 'Inter', sans-serif;
+        color: #D4AF37;
+        font-size: 1.1rem;
+        margin: 0;
+        font-weight: 500;
+    ">AI-Powered Real Estate Marketing</p>
+</div>
+""", unsafe_allow_html=True)
 
 # Helper function to convert PIL image to base64
 def image_to_base64(img, max_width=150):
@@ -430,31 +532,41 @@ def resize_with_padding(image, target_size=(1920, 1080)):
     
     return new_image
 
-def generate_video(images):
+def generate_video(images, file_manager):
+    """
+    Generate a property tour video from images
+
+    Args:
+        images: List of PIL Image objects
+        file_manager: FileManager instance for temp file handling
+
+    Returns:
+        str: Path to the generated video file
+    """
     clips = []
     for i, img in enumerate(images):
         # Images are already EXIF-transposed from cache
-        
+
         # Resize with padding (Letterboxing)
         img = resize_with_padding(img, (1920, 1080))
-        
+
         # Convert PIL Image to numpy array
         img_array = np.array(img.convert('RGB'))
-        
+
         # Create ImageClip
         clip = ImageClip(img_array).with_duration(3)
-        
+
         # Apply crossfade and positioning
         if i > 0:
             start_time = i * 2  # 3s duration - 1s overlap
             clip = clip.with_start(start_time).with_effects([vfx.CrossFadeIn(1)])
-        
+
         clips.append(clip)
-    
+
     # Create composite video
     video = CompositeVideoClip(clips)
-    output_path = "property_tour.mp4"
-    
+    output_path = file_manager.get_path("property_tour.mp4")
+
     # Write video file
     video.write_videofile(output_path, fps=24, codec='libx264', preset='ultrafast')
     return output_path
@@ -537,64 +649,75 @@ def extract_narration_from_script(script_text):
     
     return narration
 
-def generate_video_with_voiceover(images, script_text):
-    """Generate property tour video with AI voiceover"""
-    
+def generate_video_with_voiceover(images, script_text, file_manager):
+    """
+    Generate property tour video with AI voiceover
+
+    Args:
+        images: List of PIL Image objects
+        script_text: Video script text containing narration
+        file_manager: FileManager instance for temp file handling
+
+    Returns:
+        str: Path to the generated video file with voiceover
+    """
+
     # CRITICAL: Clean the script to extract only narration
     clean_narration = extract_narration_from_script(script_text)
-    
+
     # Validate we have narration to speak
     if not clean_narration or len(clean_narration.strip()) < 10:
         raise ValueError("Could not extract narration from script. Please check script format.")
-    
+
     # Debug: Show what will be spoken
     print(f"DEBUG - Original script length: {len(script_text)} chars")
     print(f"DEBUG - Clean narration length: {len(clean_narration)} chars")
     print(f"DEBUG - Narration to speak: {clean_narration[:200]}...")  # First 200 chars
-    
+
     # Generate voiceover audio from cleaned narration
     tts = gTTS(text=clean_narration, lang='en', slow=False)
-    audio_path = "voiceover.mp3"
+    audio_path = file_manager.get_path("voiceover.mp3")
     tts.save(audio_path)
-    
+
     # Load audio
     audio = AudioFileClip(audio_path)
     audio_duration = audio.duration
-    
+
     # Calculate image duration based on audio length
     duration_per_image = audio_duration / len(images)
-    
+
     # Create video clips
     clips = []
     for i, img in enumerate(images):
         # Images are already EXIF-transposed from cache
         img = resize_with_padding(img, (1920, 1080))
         img_array = np.array(img.convert('RGB'))
-        
+
         clip = ImageClip(img_array).with_duration(duration_per_image)
-        
+
         # Add crossfade transitions
         if i > 0:
             overlap = min(0.5, duration_per_image * 0.2)  # 20% overlap or 0.5s max
             start_time = i * (duration_per_image - overlap)
             clip = clip.with_start(start_time).with_effects([vfx.CrossFadeIn(overlap)])
-        
+
         clips.append(clip)
-    
+
     # Create composite video
     video = CompositeVideoClip(clips)
-    
+
     # Add audio to video
     final_video = video.with_audio(audio)
-    
-    output_path = "property_tour_with_voice.mp4"
+
+    output_path = file_manager.get_path("property_tour_with_voice.mp4")
     final_video.write_videofile(output_path, fps=24, codec='libx264', preset='ultrafast', audio_codec='aac')
-    
-    # Cleanup
-    os.remove(audio_path)
+
+    # Cleanup temporary audio file
+    if os.path.exists(audio_path):
+        os.remove(audio_path)
     audio.close()
     video.close()
-    
+
     return output_path
 
 def generate_reso_data(images, addr, city, state, zip_code, price, beds_baths, sqft, additional_details, listing_description):
@@ -717,8 +840,15 @@ def generate_reso_data(images, addr, city, state, zip_code, price, beds_baths, s
 
 # Status Dashboard
 if uploaded_files:
-    st.markdown("### 📊 Generation Status")
-    
+    st.markdown("""
+    <h3 style="
+        font-family: 'Playfair Display', serif;
+        color: #1E293B;
+        font-size: 1.8rem;
+        margin-bottom: 1.5rem;
+    ">📊 Generation Status</h3>
+    """, unsafe_allow_html=True)
+
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
@@ -742,7 +872,15 @@ if uploaded_files:
     st.markdown("---")
 
 # Premium Button Layout
-st.markdown("### 🎬 Generate Content")
+st.markdown("""
+<h3 style="
+    font-family: 'Playfair Display', serif;
+    color: #1E293B;
+    font-size: 1.8rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+">🎬 Generate Content</h3>
+""", unsafe_allow_html=True)
 
 # Primary action row
 col1, col2, col3 = st.columns(3)
@@ -928,9 +1066,10 @@ if generate_video:
                     with st.spinner("Creating video with voiceover..."):
                         video_path = generate_video_with_voiceover(
                             images,
-                            st.session_state.video_script
+                            st.session_state.video_script,
+                            st.session_state.file_manager
                         )
-                        
+
                         st.session_state.generated_video_path = video_path
                         st.success("✅ Video with voiceover generated successfully!")
                         st.rerun()
