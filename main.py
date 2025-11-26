@@ -400,8 +400,25 @@ st.sidebar.text_area(
     key='additional_details_input',
     placeholder="Recent updates, nearby amenities, special features...",
     height=100,
+    max_chars=500,
     label_visibility="collapsed",
     help="Add details not visible in photos: recent updates, nearby amenities, special features, etc."
+)
+
+st.sidebar.markdown("---")
+
+# Listing Length Section
+st.sidebar.markdown("### 📏 Listing Length")
+st.sidebar.radio(
+    "Select listing description length",
+    options=[
+        "Brief (150 words)",
+        "Standard (250 words)",
+        "Detailed (400 words)"
+    ],
+    key='listing_length_input',
+    index=1,  # Default to Standard
+    label_visibility="collapsed"
 )
 
 st.sidebar.markdown("---")
@@ -988,7 +1005,13 @@ if generate_listing:
                         
                         # Get additional details from user input
                         additional_details = st.session_state.get('additional_details_input', '').strip()
-                        
+
+                        # Extract word count from listing length selection
+                        listing_length = st.session_state.get('listing_length_input', 'Standard (250 words)')
+                        # Extract the number from the string (e.g., "Brief (150 words)" -> 150)
+                        word_count_match = re.search(r'\((\d+) words\)', listing_length)
+                        word_count = int(word_count_match.group(1)) if word_count_match else 250
+
                         # Construct prompt with actual values
                         prompt = f"""
                         You are a top-tier luxury real estate copywriter. Here are photos of {addr_display}, a {property_type} listed for {price_display}. The property has {beds_display}.
@@ -1006,7 +1029,7 @@ if generate_listing:
                         The values should be plain text (no HTML tags).
                         Format the output in clean Markdown. Ensure there is a double newline between every paragraph for proper spacing.
 
-                        Listing Description: Write a 250-word engaging, professional listing description tailored for a {property_type}. Use the provided address ({addr_display}) and price ({price_display}) in the first paragraph. Do not use placeholders like [Address] or [Price]. Highlight features appropriate for this property type as seen in the photos (e.g., natural light, flooring, appliances, common areas, etc.).
+                        Listing Description: Write a {word_count}-word engaging, professional listing description tailored for a {property_type}. Use the provided address ({addr_display}) and price ({price_display}) in the first paragraph. Do not use placeholders like [Address] or [Price]. Highlight features appropriate for this property type as seen in the photos (e.g., natural light, flooring, appliances, common areas, etc.).
 
                         Social Media Video Script: Create a structured script for a 60-second video tour (Instagram Reel/TikTok style) that emphasizes the unique selling points of a {property_type}. Match specific voiceover lines to specific photo filenames provided.
                         """
